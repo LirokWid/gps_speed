@@ -2,90 +2,140 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Speed & Acceleration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GPS Speed & Acceleration Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: sans-serif;
+            padding: 1em;
             text-align: center;
-            padding: 2em;
         }
         h1 {
-            font-size: 1.5em;
+            margin-bottom: 1em;
         }
         .reading {
-            font-size: 1.5em;
+            margin: 1em 0;
+            font-size: 1.2em;
+        }
+        canvas {
+            max-width: 100%;
             margin: 1em 0;
         }
         button {
-            padding: 1em 2em;
+            padding: 0.8em 1.5em;
             font-size: 1em;
         }
     </style>
 </head>
 <body>
-<h1>GPS Speed & Acceleration</h1>
-<div class="reading">Speed (GPS): <span id="speed">--</span> km/h</div>
-<div class="reading">Acceleration (calculated): <span id="acceleration">--</span> m/s²</div>
-<div class="reading">Acceleration (device): <span id="device-accel">--</span> m/s²</div>
+<h1>GPS Speed & Acceleration Tracker</h1>
+
+<div class="reading">Speed: <span id="speed">--</span> km/h</div>
+<div class="reading">GPS Accel: <span id="acceleration">--</span> m/s²</div>
+<div class="reading">Device Accel: <span id="device-accel">--</span> m/s²</div>
+
 <button onclick="startTracking()">Start Tracking</button>
+
+<canvas id="speedChart"></canvas>
+<canvas id="gpsAccelChart"></canvas>
+<canvas id="deviceAccelChart"></canvas>
 
 <script>
     let lastSpeed = null;
     let lastTime = null;
 
+    // Chart setup
+    const speedCtx = document.getElementById('speedChart').getContext('2d');
+    const accelCtx = document.getElementById('gpsAccelChart').getContext('2d');
+    const devAccelCtx = document.getElementById('deviceAccelChart').getContext('2d');
+
+    const createChart = (ctx, label, color) => new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: label,
+                borderColor: color,
+                borderWidth: 2,
+                data: [],
+                fill: false,
+                tension: 0.3
+            }]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            scales: {
+                x: {
+                    ticks: { display: false }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    const speedChart = createChart(speedCtx, 'Speed (km/h)', 'blue');
+    const gpsAccelChart = createChart(accelCtx, 'GPS Accel (m/s²)', 'green');
+    const deviceAccelChart = createChart(devAccelCtx, 'Device Accel (m/s²)', 'red');
+
+    function addChartData(chart, value) {
+        const now = new Date().toLocaleTimeString();
+        chart.data.labels.push(now);
+        chart.data.datasets[0].data.push(value);
+        if (chart.data.labels.length > 50) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+    }
+
     function startTracking() {
-        // Request motion permission on iOS
+        // iOS permission
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission()
                 .then(response => {
                     if (response === 'granted') {
                         window.addEventListener('devicemotion', handleDeviceMotion);
                     } else {
-                        alert("Permission to access device motion was denied.");
+                        alert("Device motion permission denied.");
                     }
                 })
                 .catch(console.error);
         } else {
-            // Android or non-iOS browsers
             window.addEventListener('devicemotion', handleDeviceMotion);
         }
 
-        // Geolocation
         if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser.");
+            alert("Geolocation not supported.");
             return;
         }
 
         navigator.geolocation.watchPosition(
-            (position) => {
-                const speed = position.coords.speed; // m/s
+            (pos) => {
+                const speed = pos.coords.speed;
                 const now = Date.now();
 
                 if (speed !== null) {
-                    const speedKmh = (speed * 3.6).toFixed(1);
-                    document.getElementById('speed').textContent = speedKmh;
+                    const kmh = (speed * 3.6).toFixed(1);
+                    document.getElementById('speed').textContent = kmh;
+                    addChartData(speedChart, parseFloat(kmh));
 
                     if (lastSpeed !== null && lastTime !== null) {
-                        const dt = (now - lastTime) / 1000; // seconds
-                        const dv = speed - lastSpeed;       // m/s
+                        const dt = (now - lastTime) / 1000;
+                        const dv = speed - lastSpeed;
                         const accel = (dv / dt).toFixed(2);
                         document.getElementById('acceleration').textContent = accel;
+                        addChartData(gpsAccelChart, parseFloat(accel));
                     }
 
                     lastSpeed = speed;
                     lastTime = now;
-                } else {
-                    document.getElementById('speed').textContent = '0';
-                    document.getElementById('acceleration').textContent = '0';
                 }
             },
-            (err) =>
-            {
-                console.error(err);
-
-                alert("Error getting location: " + err.message);
-            },
+            (err) => alert("Geolocation error: " + err.message),
             {
                 enableHighAccuracy: true,
                 maximumAge: 1000,
@@ -94,11 +144,12 @@
         );
     }
 
-    function handleDeviceMotion(event) {
-        const a = event.acceleration;
+    function handleDeviceMotion(e) {
+        const a = e.acceleration;
         if (a && a.x !== null && a.y !== null && a.z !== null) {
-            const totalAccel = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2);
-            document.getElementById('device-accel').textContent = totalAccel.toFixed(2);
+            const total = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2).toFixed(2);
+            document.getElementById('device-accel').textContent = total;
+            addChartData(deviceAccelChart, parseFloat(total));
         }
     }
 </script>
