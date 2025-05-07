@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Speed & Acceleration</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 2em;
+        }
+        h1 {
+            font-size: 1.5em;
+        }
+        .reading {
+            font-size: 1.5em;
+            margin: 1em 0;
+        }
+        button {
+            padding: 1em 2em;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<h1>GPS Speed & Acceleration</h1>
+<div class="reading">Speed (GPS): <span id="speed">--</span> km/h</div>
+<div class="reading">Acceleration (calculated): <span id="acceleration">--</span> m/s²</div>
+<div class="reading">Acceleration (device): <span id="device-accel">--</span> m/s²</div>
+<button onclick="startTracking()">Start Tracking</button>
+
+<script>
+    let lastSpeed = null;
+    let lastTime = null;
+
+    function startTracking() {
+        // Request motion permission on iOS
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('devicemotion', handleDeviceMotion);
+                    } else {
+                        alert("Permission to access device motion was denied.");
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Android or non-iOS browsers
+            window.addEventListener('devicemotion', handleDeviceMotion);
+        }
+
+        // Geolocation
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+
+        navigator.geolocation.watchPosition(
+            (position) => {
+                const speed = position.coords.speed; // m/s
+                const now = Date.now();
+
+                if (speed !== null) {
+                    const speedKmh = (speed * 3.6).toFixed(1);
+                    document.getElementById('speed').textContent = speedKmh;
+
+                    if (lastSpeed !== null && lastTime !== null) {
+                        const dt = (now - lastTime) / 1000; // seconds
+                        const dv = speed - lastSpeed;       // m/s
+                        const accel = (dv / dt).toFixed(2);
+                        document.getElementById('acceleration').textContent = accel;
+                    }
+
+                    lastSpeed = speed;
+                    lastTime = now;
+                } else {
+                    document.getElementById('speed').textContent = '0';
+                    document.getElementById('acceleration').textContent = '0';
+                }
+            },
+            (err) =>
+            {
+                console.error(err);
+
+                alert("Error getting location: " + err.message);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 1000,
+                timeout: 10000
+            }
+        );
+    }
+
+    function handleDeviceMotion(event) {
+        const a = event.acceleration;
+        if (a && a.x !== null && a.y !== null && a.z !== null) {
+            const totalAccel = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2);
+            document.getElementById('device-accel').textContent = totalAccel.toFixed(2);
+        }
+    }
+</script>
+</body>
+</html>
