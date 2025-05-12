@@ -1,18 +1,27 @@
-Gps speed tracker
+# 📱 GPS Speed Tracker
 
-This simple app uses GPS and accelerometer data to track the speed of a moving object. It displays the speed in km/h and m/s, and also shows the distance traveled in meters. The app is designed to be simple and easy to use, with a clean and intuitive interface.
+A lightweight web app to monitor your **GPS speed**, **GPS-based acceleration**, and **position accuracy** using your phone's built-in sensors. Visualize everything in real-time with interactive graphs.
+
+TODO add Pic of app  ![screenshot](preview.png)
+
+---
 
 ## Features
-- Displays speed in km/h and m/s
-- Displays distance traveled in meters
-- Uses GPS and accelerometer data
-- Simple and intuitive interface
+
+-  Live speed tracking (in km/h)
+-  Real-time acceleration graph based on GPS
+-  Accuracy indicator (in meters)
+-  Smooth line graphs using [Chart.js](https://www.chartjs.org/)
+-  Adjustable max history points
+
+---
+
+## 🌐 Live Demo
+
+👉 [**Try it on GitHub Pages**](https://lirokwid.github.io/gps_speed/)
+> ⚠️ Best viewed on a **mobile device** with GPS enabled!
 
 
-## Requirements
-- Capable GPS device
-
-# Access it from github pages
-
-[gps_speed](https://lirokwid.github.io/gps_speed/)
-
+## Improvements to come
+- 0 to 100 km/h logger 
+- UI improvements

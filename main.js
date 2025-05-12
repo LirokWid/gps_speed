@@ -1,5 +1,7 @@
 let lastSpeed = null;
 let lastTime = null;
+let watchId = null;
+const MAX_POINTS = 50; // 👈 Set how many points to show in graph
 
 const speedEl = document.getElementById('speed');
 const accelEl = document.getElementById('acceleration');
@@ -46,14 +48,26 @@ function addData(chart, value) {
     const now = new Date().toLocaleTimeString();
     chart.data.labels.push(now);
     chart.data.datasets[0].data.push(value);
-    if (chart.data.labels.length > 50) {
+    if (chart.data.labels.length > MAX_POINTS) {
         chart.data.labels.shift();
         chart.data.datasets[0].data.shift();
     }
     chart.update();
 }
 
+
+function resetTracking() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+    lastSpeed = null;
+    lastTime = null;
+}
+
 function startTracking() {
+    resetTracking();
+
     if (!navigator.geolocation) {
         alert("Geolocation not supported.");
         return;
@@ -95,7 +109,10 @@ function startTracking() {
             }
         },
         (err) => {
-            alert("Geolocation error: " + err.message);
+            if (err.code === err.TIMEOUT) {
+                statusEl.textContent += "GPS signal timeout, retrying...";
+                setTimeout(startTracking, 5000);
+            }
             statusEl.textContent = "Error getting location.";
         },
         {
